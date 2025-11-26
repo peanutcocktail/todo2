@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pinokio Todo</title>
+  <style>
+    :root {
+      --bg: radial-gradient(circle at 10% 20%, #f9f5ff, #f6f8ff 45%, #eef7ff);
+      --panel: #0f172a;
+      --accent: #7c3aed;
+      --accent-2: #22d3ee;
+      --text: #0b1021;
+      --muted: #4b5563;
+      --surface: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Space Grotesk", "Fira Sans", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.82));
+      color: #e5e7eb;
+      width: min(900px, 100%);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 18px 60px rgba(15, 23, 42, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    form {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s ease, transform 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-2);
+      transform: translateY(-1px);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), #6d28d9);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 35px rgba(124, 58, 237, 0.35);
+    }
+
+    button:active { transform: translateY(0); }
+
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: var(--surface);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+
+    .label span.done {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ghost {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+      padding: 10px 12px;
+    }
+
+    .ghost:hover { border-color: rgba(255, 255, 255, 0.14); }
+
+    .status {
+      margin: 6px 0 14px;
+      color: #cbd5e1;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    @media (max-width: 640px) {
+      .card { padding: 22px; }
+      form { flex-direction: column; }
+      button { width: 100%; }
+      .item { grid-template-columns: 1fr; }
+      .actions { justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div>
+        <h1>Todo Snapshot</h1>
+        <p>Fast, minimal tasks that persist on disk while the server runs.</p>
+      </div>
+      <div class="meta" id="summary"></div>
+    </header>
+
+    <form id="todo-form">
+      <input type="text" id="todo-input" placeholder="Capture a thought..." autocomplete="off" />
+      <button type="submit">Add</button>
+    </form>
+
+    <div class="status" id="status"></div>
+
+    <ul class="list" id="todo-list"></ul>
+  </div>
+
+  <script>
+    const listEl = document.getElementById("todo-list");
+    const statusEl = document.getElementById("status");
+    const summaryEl = document.getElementById("summary");
+    const inputEl = document.getElementById("todo-input");
+    let todos = [];
+
+    const setStatus = (text, isError = false) => {
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? "#fca5a5" : "#cbd5e1";
+    };
+
+    const render = () => {
+      listEl.innerHTML = "";
+      if (!todos.length) {
+        const empty = document.createElement("li");
+        empty.className = "meta";
+        empty.textContent = "Nothing yet. Add the first item above.";
+        listEl.appendChild(empty);
+      }
+      todos.forEach((todo) => {
+        const li = document.createElement("li");
+        li.className = "item";
+
+        const label = document.createElement("label");
+        label.className = "label";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = todo.done;
+        checkbox.addEventListener("change", () => toggle(todo.id, checkbox.checked));
+
+        const title = document.createElement("span");
+        title.textContent = todo.title;
+        if (todo.done) title.classList.add("done");
+
+        label.appendChild(checkbox);
+        label.appendChild(title);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "ghost";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", () => remove(todo.id));
+
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(label);
+        li.appendChild(document.createElement("div")); // spacer for grid
+        li.appendChild(actions);
+
+        listEl.appendChild(li);
+      });
+
+      const doneCount = todos.filter((t) => t.done).length;
+      summaryEl.textContent = `${doneCount}/${todos.length || 0} completed`;
+    };
+
+    const fetchTodos = async () => {
+      setStatus("Loading todos...");
+      try {
+        const res = await fetch("/api/todos");
+        if (!res.ok) throw new Error("Failed to load");
+        const data = await res.json();
+        todos = data.todos || [];
+        setStatus("");
+        render();
+      } catch (err) {
+        setStatus("Unable to load todos. Try refreshing.", true);
+      }
+    };
+
+    const add = async (title) => {
+      setStatus("Saving item...");
+      try {
+        const res = await fetch("/api/todos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title })
+        });
+        if (!res.ok) {
+          const msg = (await res.json()).error || "Unable to add item.";
+          throw new Error(msg);
+        }
+        const newItem = await res.json();
+        todos.push(newItem);
+        inputEl.value = "";
+        setStatus("Added.");
+        render();
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    };
+
+    const toggle = async (id, done) => {
+      setStatus(done ? "Marking done..." : "Marking pending...");
+      try {
+        const res = await fetch(`/api/todos/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ done })
+        });
+        if (!res.ok) throw new Error("Update failed");
+        const updated = await res.json();
+        todos = todos.map((t) => (t.id === id ? updated : t));
+        setStatus("Updated.");
+        render();
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    };
+
+    const remove = async (id) => {
+      setStatus("Removing item...");
+      try {
+        const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
+        if (!res.ok && res.status !== 204) throw new Error("Remove failed");
+        todos = todos.filter((t) => t.id !== id);
+        setStatus("Deleted.");
+        render();
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    };
+
+    document.getElementById("todo-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const value = (inputEl.value || "").trim();
+      if (!value) return setStatus("Please enter a task.", true);
+      add(value);
+    });
+
+    fetchTodos();
+  </script>
+</body>
+</html>
