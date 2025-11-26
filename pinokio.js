@@ -1,6 +1,6 @@
 const path = require("path")
 module.exports = {
-  version: "1.5",
+  version: "5.0.0",
   title: "Todo Snapshot",
   description: "A minimal Flask-powered todo list with a clean web UI and API endpoints.",
   icon: "icon.svg",
