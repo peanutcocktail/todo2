@@ -1,5 +1,4 @@
 const path = require("path")
-
 module.exports = {
   version: "1.5",
   title: "Todo Snapshot",
